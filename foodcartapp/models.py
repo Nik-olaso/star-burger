@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 class Restaurant(models.Model):
@@ -121,3 +122,70 @@ class RestaurantMenuItem(models.Model):
 
     def __str__(self):
         return f"{self.restaurant.name} - {self.product.name}"
+
+
+class Order(models.Model):
+    first_name = models.CharField(
+        'имя',
+        max_length=50,
+        db_index=True
+    )
+    last_name = models.CharField(
+        'фамилия',
+        max_length=50,
+        db_index=True
+    )
+    phone_number = PhoneNumberField(
+        'номер телефона',
+        region='RU',
+        db_index=True
+    )
+    address = models.TextField(
+        'адрес доставки'
+    )
+
+    class Meta:
+        verbose_name = 'заказ'
+        verbose_name_plural = 'заказы'
+    
+    def __str__(self):
+        return f"Заказ - {self.first_name} {self.last_name}"
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        related_name='items',
+        verbose_name='заказ',
+        on_delete=models.CASCADE,
+    )
+    product = models.ForeignKey(
+        Product,
+        related_name='order_items',
+        verbose_name='товар',
+        on_delete=models.PROTECT,
+    )
+    quantity = models.PositiveIntegerField(
+        'количество',
+        validators=[MinValueValidator(1)]
+    )
+    price = models.DecimalField(
+        'цена за единицу',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    created_at = models.DateTimeField(
+        'дата создания',
+        auto_now_add=True,
+        db_index=True
+    )
+    
+    class Meta:
+        verbose_name = 'позиция заказа'
+        verbose_name_plural = 'позиции заказов'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity} = {self.price} руб."
+

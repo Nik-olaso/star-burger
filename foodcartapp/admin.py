@@ -1,13 +1,15 @@
+from django import forms
 from django.contrib import admin
 from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.core.exceptions import ValidationError
 
 from .models import Product
 from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
-
+from .models import Order, OrderItem 
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
@@ -104,3 +106,40 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(ProductCategory)
 class ProductAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(OrderItem)
+class OrderItemAdmin(admin.ModelAdmin):
+    list_display = ('order', 'product', 'quantity', 'price')
+    search_fields = ('order__id', 'product__name')
+
+
+class OrderItemForm(forms.ModelForm):
+    class Meta:
+        model = OrderItem
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_info = super().clean()
+        product = cleaned_info.get('product')
+        order = cleaned_info.get('order')
+
+        if product and order:
+            try:
+                cleaned_info['price'] = product.price
+            except RestaurantMenuItem.DoesNotExist:
+                raise ValidationError(f"Нет товара {product.name}")
+        return cleaned_info
+
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('first_name', 'last_name', 'address')
+    search_fields = ('first_name', 'last_name', 'address')
+    inlines = [OrderItemInline]
+
+
